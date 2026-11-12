@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { SnapOption } from '../lib/snap'
+import type { Lang } from '../lib/i18n'
 import type { Tool } from '../types'
 import { clamp } from '../lib/ticks'
 
@@ -32,6 +33,9 @@ interface UiStore {
   theme: 'dark' | 'light'
   setTheme: (t: 'dark' | 'light') => void
   toggleTheme: () => void
+
+  lang: Lang
+  setLang: (lang: Lang) => void
 
   viewport: Viewport
   setViewportSize: (width: number, height: number) => void
@@ -112,6 +116,27 @@ export const useUiStore = create<UiStore>((set) => ({
       }
       return { theme }
     }),
+
+  lang: (() => {
+    try {
+      const saved = localStorage.getItem('melody-lang')
+      if (saved === 'zh' || saved === 'en') return saved
+      return typeof navigator !== 'undefined' &&
+        navigator.language.toLowerCase().startsWith('zh')
+        ? 'zh'
+        : 'en'
+    } catch {
+      return 'en'
+    }
+  })() as Lang,
+  setLang: (lang) => {
+    try {
+      localStorage.setItem('melody-lang', lang)
+    } catch {
+      /* private mode */
+    }
+    set({ lang })
+  },
 
   viewport: {
     pxPerTick: 0.14,

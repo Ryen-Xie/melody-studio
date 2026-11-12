@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { useT } from '../lib/i18n'
 
 export function Modal({
   title,
@@ -17,6 +18,7 @@ export function Modal({
   footer?: React.ReactNode
   width?: number
 }) {
+  const t = useT()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -43,7 +45,7 @@ export function Modal({
               <div style={{ fontSize: 11.5, color: 'var(--faint)', marginTop: 2 }}>{subtitle}</div>
             )}
           </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
+          <button className="icon-btn" onClick={onClose} aria-label={t('common.close')}>
             <X size={16} />
           </button>
         </div>

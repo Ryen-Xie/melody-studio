@@ -8,8 +8,10 @@ import { engine } from '../audio/engine'
 import { barTicks, formatPosition } from '../lib/ticks'
 import { pitchLabel } from '../lib/pitch'
 import { keyLabel } from '../lib/theory'
+import { useT } from '../lib/i18n'
 
 export function BottomPanel() {
+  const t = useT()
   const open = useUiStore((s) => s.bottomOpen)
   const tab = useUiStore((s) => s.bottomTab)
   const height = useUiStore((s) => s.bottomHeight)
@@ -53,7 +55,7 @@ export function BottomPanel() {
             setOpen(true)
           }}
         >
-          Velocity
+          {t('bottom.velocity')}
         </button>
         <button
           className={`tab ${tab === 'info' ? 'active' : ''}`}
@@ -62,11 +64,11 @@ export function BottomPanel() {
             setOpen(true)
           }}
         >
-          Info
+          {t('bottom.info')}
         </button>
         <div style={{ flex: 1 }} />
         <span className="kbd-hint" style={{ marginRight: 6 }}>
-          {open && tab === 'velocity' ? 'Drag bars to shape dynamics' : ''}
+          {open && tab === 'velocity' ? t('bottom.dragHint') : ''}
         </span>
         <button className="icon-btn" style={{ width: 24, height: 24 }} onClick={() => setOpen(!open)}>
           {open ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
@@ -253,19 +255,26 @@ function VelocityLane() {
 }
 
 function InfoPanel() {
+  const t = useT()
+  const lang = useUiStore((s) => s.lang)
   const project = useProjectStore((s) => s.project)
   const selectedIds = useProjectStore((s) => s.selectedIds)
   const selected = project.notes.filter((n) => selectedIds.includes(n.id))
   const barLen = barTicks(project.timeSignature)
   const cells = [
-    ['Project', project.name],
-    ['Key', keyLabel(project.keyRoot, project.keyMode)],
-    ['Tempo', `${project.bpm} BPM`],
-    ['Time', `${project.timeSignature.numerator}/${project.timeSignature.denominator}`],
-    ['Length', `${project.bars} bars`],
-    ['Notes', String(project.notes.length)],
-    ['Selected', String(selected.length)],
-    ['Loop', project.loop.enabled ? `${Math.floor(project.loop.start / barLen) + 1} → ${Math.ceil(project.loop.end / barLen)}` : 'Off'],
+    [t('info.project'), project.name],
+    [t('info.key'), keyLabel(project.keyRoot, project.keyMode, lang)],
+    [t('info.tempo'), `${project.bpm} BPM`],
+    [t('info.time'), `${project.timeSignature.numerator}/${project.timeSignature.denominator}`],
+    [t('info.length'), t('info.bars', { n: project.bars })],
+    [t('info.notes'), String(project.notes.length)],
+    [t('info.selected'), String(selected.length)],
+    [
+      t('info.loop'),
+      project.loop.enabled
+        ? `${Math.floor(project.loop.start / barLen) + 1} → ${Math.ceil(project.loop.end / barLen)}`
+        : t('common.off'),
+    ],
   ]
   const first = selected[0]
 
@@ -280,25 +289,25 @@ function InfoPanel() {
       {first && (
         <>
           <dl className="info-cell">
-            <dt>Note</dt>
+            <dt>{t('info.note')}</dt>
             <dd>{pitchLabel(first.pitch)}</dd>
           </dl>
           <dl className="info-cell">
-            <dt>Start</dt>
+            <dt>{t('info.start')}</dt>
             <dd>{formatPosition(first.start, project.timeSignature)}</dd>
           </dl>
           <dl className="info-cell">
-            <dt>Length</dt>
-            <dd>{Math.round((first.duration / 480) * 100) / 100} beats</dd>
+            <dt>{t('insp.length')}</dt>
+            <dd>{t('info.beats', { n: Math.round((first.duration / 480) * 100) / 100 })}</dd>
           </dl>
           <dl className="info-cell">
-            <dt>Velocity</dt>
+            <dt>{t('info.velocity')}</dt>
             <dd>{first.velocity}</dd>
           </dl>
         </>
       )}
       <dl className="info-cell">
-        <dt>Position</dt>
+        <dt>{t('info.position')}</dt>
         <dd>
           <PlayheadTime />
         </dd>

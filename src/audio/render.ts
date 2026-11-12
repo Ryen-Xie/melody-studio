@@ -1,4 +1,4 @@
-import type { Project } from '../types'
+﻿import type { Project } from '../types'
 import { barTicks, ticksToSeconds } from '../lib/ticks'
 import { SAMPLE_FILES, fetchSample, nearestRoot } from './samples'
 import { encodeWav } from './wav'
@@ -47,7 +47,7 @@ export async function renderProjectWav(
   const lengthSeconds = ticksToSeconds(spanTicks, project.bpm) + TAIL_SECONDS
   const sampleRate = 44100
 
-  onProgress?.(0.05, 'Preparing audio engine')
+  onProgress?.(0.05, 'exp.progress.prep')
   const ctx = new OfflineAudioContext(
     2,
     Math.ceil(lengthSeconds * sampleRate),
@@ -95,10 +95,10 @@ export async function renderProjectWav(
   for (const [name, promise] of needed) {
     buffers.set(name, await promise)
     loaded += 1
-    onProgress?.(0.08 + 0.42 * (loaded / Math.max(1, needed.size)), 'Loading piano samples')
+    onProgress?.(0.08 + 0.42 * (loaded / Math.max(1, needed.size)), 'exp.progress.samples')
   }
 
-  onProgress?.(0.55, 'Placing notes')
+  onProgress?.(0.55, 'exp.progress.place')
   await new Promise((r) => setTimeout(r, 0))
 
   for (const note of notes) {
@@ -130,7 +130,7 @@ export async function renderProjectWav(
     source.stop(stopAt)
   }
 
-  onProgress?.(0.62, 'Rendering waveform')
+  onProgress?.(0.62, 'exp.progress.render')
   const rendered = await ctx.startRendering()
 
   /* normalize to a predictable level so exports are not whisper-quiet */
@@ -150,9 +150,10 @@ export async function renderProjectWav(
     }
   }
 
-  onProgress?.(0.92, 'Encoding WAV')
+  onProgress?.(0.92, 'exp.progress.encode')
   await new Promise((r) => setTimeout(r, 0))
   const blob = encodeWav(rendered)
-  onProgress?.(1, 'Done')
+  onProgress?.(1, 'exp.progress.done')
   return blob
 }
+

@@ -15,6 +15,7 @@ import { snapTicks } from './lib/snap'
 import { clamp } from './lib/ticks'
 import { MAX_PITCH, MIN_PITCH } from './lib/pitch'
 import { keyState } from './lib/keyState'
+import { useT } from './lib/i18n'
 
 type Dialog = 'projects' | 'export' | 'help' | null
 
@@ -41,9 +42,11 @@ const isTyping = () => {
 }
 
 export default function App() {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const rightOpen = useUiStore((s) => s.rightOpen)
   const theme = useUiStore((s) => s.theme)
+  const lang = useUiStore((s) => s.lang)
   const toast = useUiStore((s) => s.toast)
   const notify = useUiStore((s) => s.notify)
   const setPlaying = useUiStore((s) => s.setPlaying)
@@ -63,6 +66,12 @@ export default function App() {
       ?.setAttribute('content', theme === 'dark' ? '#0b0c0f' : '#f4f4f7')
   }, [theme])
 
+  /* language */
+  useEffect(() => {
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
+    document.title = lang === 'zh' ? 'Melody Studio · 旋律工作站' : 'Melody Studio'
+  }, [lang])
+
   /* restore the last project, or start a clean one */
   useEffect(() => {
     let cancelled = false
@@ -74,7 +83,7 @@ export default function App() {
           useProjectStore.getState().replaceProject(restored)
           engine.sync(restored)
         } else if (!cancelled) {
-          const fresh = createEmptyProject()
+          const fresh = createEmptyProject(t('proj.untitled'))
           await saveProject(fresh)
           await setLastProjectId(fresh.id)
           useProjectStore.getState().replaceProject(fresh)
@@ -118,10 +127,10 @@ export default function App() {
         .then(() => {
           if (useProjectStore.getState().project.id === project.id) setSaveState('saved')
         })
-        .catch(() => notify('Autosave failed'))
+        .catch(() => notify(t('app.autosaveFailed')))
     }, 650)
     return () => clearTimeout(timer)
-  }, [project, setSaveState, notify])
+  }, [project, setSaveState, notify, t])
 
   /* shortcuts */
   useEffect(() => {
@@ -141,7 +150,7 @@ export default function App() {
           .then(() => setLastProjectId(useProjectStore.getState().project.id))
           .then(() => {
             setSaveState('saved')
-            notify('Project saved')
+            notify(t('app.saved'))
           })
         return
       }
@@ -162,7 +171,7 @@ export default function App() {
         if (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'x') {
           const next = useUiStore.getState().keyboardOctave + (e.key.toLowerCase() === 'z' ? -1 : 1)
           useUiStore.getState().setKeyboardOctave(next)
-          notify(`Keyboard octave ${useUiStore.getState().keyboardOctave}`)
+          notify(t('app.octave', { n: useUiStore.getState().keyboardOctave }))
           return
         }
       }
@@ -187,7 +196,7 @@ export default function App() {
       if (mod && e.key.toLowerCase() === 'c') {
         e.preventDefault()
         store.copySelection()
-        notify('Copied')
+        notify(t('app.copied'))
         return
       }
       if (mod && e.key.toLowerCase() === 'x') {
@@ -300,7 +309,7 @@ export default function App() {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
     }
-  }, [notify, setPlaying, setSaveState])
+  }, [notify, setPlaying, setSaveState, t])
 
   return (
     <div className="app">
@@ -321,13 +330,11 @@ export default function App() {
 
       {audioStatus === 'loading' && (
         <div className="audio-banner">
-          <span className="audio-dot" /> Loading piano samples…
+          <span className="audio-dot" /> {t('app.loadingSamples')}
         </div>
       )}
       {audioStatus === 'fallback' && (
-        <div className="audio-banner warn">
-          Piano samples unavailable — using the built-in synth
-        </div>
+        <div className="audio-banner warn">{t('app.fallback')}</div>
       )}
 
       {dialog === 'projects' && (

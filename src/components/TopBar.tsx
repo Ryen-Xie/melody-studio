@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  Check,
   CircleStop,
   Cloud,
   Download,
   FolderOpen,
   HelpCircle,
+  Languages,
   Moon,
   Music4,
   PanelRight,
@@ -20,6 +22,7 @@ import { useProjectStore } from '../store/project'
 import { useUiStore } from '../store/ui'
 import { formatPosition } from '../lib/ticks'
 import { pitchClassLabel } from '../lib/pitch'
+import { useT } from '../lib/i18n'
 
 function PositionReadout() {
   const [tick, setTick] = useState(0)
@@ -98,6 +101,7 @@ export function TopBar({
   onOpenExport: () => void
   onOpenHelp: () => void
 }) {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const setName = useProjectStore((s) => s.setName)
   const setBpm = useProjectStore((s) => s.setBpm)
@@ -116,9 +120,33 @@ export function TopBar({
   const saveState = useUiStore((s) => s.saveState)
   const rightOpen = useUiStore((s) => s.rightOpen)
   const setRightOpen = useUiStore((s) => s.setRightOpen)
+  const lang = useUiStore((s) => s.lang)
+  const setLang = useUiStore((s) => s.setLang)
 
   const [name, setLocalName] = useState(project.name)
   useEffect(() => setLocalName(project.name), [project.name])
+
+  const [langOpen, setLangOpen] = useState(false)
+  const [langPos, setLangPos] = useState({ x: 0, y: 0 })
+  const langBtnRef = useRef<HTMLButtonElement | null>(null)
+  const langMenuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!langOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!langMenuRef.current?.contains(e.target as Node)) setLangOpen(false)
+    }
+    window.addEventListener('mousedown', onDown)
+    return () => window.removeEventListener('mousedown', onDown)
+  }, [langOpen])
+
+  const openLang = () => {
+    const rect = langBtnRef.current?.getBoundingClientRect()
+    if (rect) {
+      setLangPos({ x: Math.max(8, rect.right - 168), y: rect.bottom + 6 })
+    }
+    setLangOpen((v) => !v)
+  }
 
   const togglePlay = () => {
     if (engine.isPlaying) {
@@ -146,6 +174,12 @@ export function TopBar({
   }
 
   const KEY_ROOTS = Array.from({ length: 12 }, (_, i) => i)
+  const saveLabel =
+    saveState === 'saving'
+      ? t('top.saving')
+      : saveState === 'dirty'
+        ? t('top.editing')
+        : t('top.saved')
 
   return (
     <header className="topbar">
@@ -155,7 +189,7 @@ export function TopBar({
         </div>
         <div>
           <div className="brand-name">Melody Studio</div>
-          <div className="brand-sub">Compose</div>
+          <div className="brand-sub">{t('top.compose')}</div>
         </div>
       </div>
 
@@ -167,7 +201,7 @@ export function TopBar({
         spellCheck={false}
         onChange={(e) => setLocalName(e.target.value)}
         onBlur={() => {
-          const next = name.trim() || 'Untitled melody'
+          const next = name.trim() || t('proj.untitled')
           if (next !== project.name) setName(next)
           setLocalName(next)
         }}
@@ -179,7 +213,7 @@ export function TopBar({
 
       <div className="save-state">
         <span className={`save-dot ${saveState === 'saved' ? '' : 'pending'}`} />
-        {saveState === 'saving' ? 'Saving' : saveState === 'dirty' ? 'Editing' : 'Saved'}
+        {saveLabel}
       </div>
 
       <div className="topbar-spacer" />
@@ -188,17 +222,17 @@ export function TopBar({
         <button
           className={`tp-btn primary ${playing ? 'playing' : ''}`}
           onClick={togglePlay}
-          title={playing ? 'Pause (Space)' : 'Play (Space)'}
+          title={playing ? t('top.pause') : t('top.play')}
         >
           {playing ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
         </button>
-        <button className="tp-btn" onClick={stop} title="Stop (Enter)">
+        <button className="tp-btn" onClick={stop} title={t('top.stop')}>
           <CircleStop size={15} />
         </button>
         <button
           className={`tp-btn ${project.loop.enabled ? 'active' : ''}`}
           onClick={toggleLoop}
-          title="Loop (L)"
+          title={t('top.loop')}
         >
           <Repeat size={14} />
         </button>
@@ -206,13 +240,13 @@ export function TopBar({
 
       <PositionReadout />
 
-      <div className="field" title="Tempo">
+      <div className="field" title={t('top.tempo')}>
         <span className="field-label">BPM</span>
         <NumberField value={project.bpm} min={30} max={260} onChange={setBpm} width={34} />
       </div>
 
-      <div className="field" title="Key and mode">
-        <span className="field-label">Key</span>
+      <div className="field" title={t('top.key')}>
+        <span className="field-label">{t('top.key')}</span>
         <select
           value={project.keyRoot}
           onChange={(e) => setKey(Number(e.target.value), project.keyMode)}
@@ -227,13 +261,13 @@ export function TopBar({
           value={project.keyMode}
           onChange={(e) => setKey(project.keyRoot, e.target.value as 'major' | 'minor')}
         >
-          <option value="major">major</option>
-          <option value="minor">minor</option>
+          <option value="major">{t('top.major')}</option>
+          <option value="minor">{t('top.minor')}</option>
         </select>
       </div>
 
-      <div className="field" title="Time signature">
-        <span className="field-label">Time</span>
+      <div className="field" title={t('top.time')}>
+        <span className="field-label">{t('top.time')}</span>
         <select
           value={`${project.timeSignature.numerator}/${project.timeSignature.denominator}`}
           onChange={(e) => {
@@ -251,40 +285,80 @@ export function TopBar({
 
       <div className="topbar-spacer" />
 
-      <button className="icon-btn" disabled={!canUndo} onClick={undo} title="Undo (Ctrl Z)">
+      <button className="icon-btn" disabled={!canUndo} onClick={undo} title={t('top.undo')}>
         <Undo2 size={15} />
       </button>
-      <button className="icon-btn" disabled={!canRedo} onClick={redo} title="Redo (Ctrl Shift Z)">
+      <button className="icon-btn" disabled={!canRedo} onClick={redo} title={t('top.redo')}>
         <Redo2 size={15} />
       </button>
 
       <div className="divider-v" />
 
-      <button className="icon-btn" onClick={onOpenProjects} title="Projects">
+      <button className="icon-btn" onClick={onOpenProjects} title={t('top.projects')}>
         <FolderOpen size={15} />
       </button>
       <button
         className={`icon-btn ${rightOpen ? 'on' : ''}`}
         onClick={() => setRightOpen(!rightOpen)}
-        title="Inspector panel"
+        title={t('top.inspector')}
       >
         <PanelRight size={15} />
       </button>
-      <button className="icon-btn" onClick={toggleTheme} title="Toggle theme">
+
+      <button
+        ref={langBtnRef}
+        className={`icon-btn ${langOpen ? 'on' : ''}`}
+        onClick={openLang}
+        title={t('top.language')}
+        aria-label={t('top.language')}
+      >
+        <Languages size={15} />
+      </button>
+
+      <button className="icon-btn" onClick={toggleTheme} title={t('top.theme')}>
         {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
       </button>
-      <button className="icon-btn" onClick={onOpenHelp} title="Keyboard shortcuts (?)">
+      <button className="icon-btn" onClick={onOpenHelp} title={t('top.help')}>
         <HelpCircle size={15} />
       </button>
       <button className="btn primary" onClick={onOpenExport} style={{ marginLeft: 4 }}>
         <Download size={13} />
-        Export
+        {t('top.export')}
       </button>
 
       <div className="divider-v" />
-      <div className="save-state" title="Projects are stored in this browser">
+      <div className="save-state" title={t('top.storage')}>
         <Cloud size={13} />
       </div>
+
+      {langOpen && (
+        <div
+          ref={langMenuRef}
+          className="dropdown"
+          style={{ left: langPos.x, top: langPos.y, width: 168 }}
+        >
+          {(
+            [
+              ['en', t('top.english')],
+              ['zh', t('top.chinese')],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              className="dropdown-item"
+              onClick={() => {
+                setLang(value)
+                setLangOpen(false)
+              }}
+            >
+              <span style={{ width: 14, display: 'inline-flex' }}>
+                {lang === value && <Check size={13} />}
+              </span>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
     </header>
   )
 }

@@ -1,4 +1,5 @@
 import type { Note, Project, TimeSignature } from '../../types'
+import { translate, type Lang } from '../../lib/i18n'
 import type { Viewport } from '../../store/ui'
 import { isBlackKey, pitchClass, pitchLabel } from '../../lib/pitch'
 import { CHORD_INTERVALS, chordLabel } from '../../lib/theory'
@@ -118,6 +119,7 @@ export interface DrawState {
   showScaleGuide: boolean
   showChords: boolean
   scalePcs: Set<number>
+  lang: Lang
   palette?: Palette
 }
 
@@ -387,14 +389,13 @@ export function drawBase(ctx: CanvasRenderingContext2D, s: DrawState) {
   ctx.fillStyle = p.rulerSub
   ctx.font = `600 9px ${FONT}`
   ctx.textBaseline = 'middle'
-  ctx.fillText('KEY', 10, RULER_H / 2)
-  const keyName = project.keyMode === 'major' ? 'maj' : 'min'
-  ctx.fillStyle = p.keyTextDim
-  ctx.fillText(
-    `${pitchLabel(project.keyRoot + 60).replace(/\d+$/, '')} ${keyName}`,
-    36,
-    RULER_H / 2,
+  ctx.fillText(translate(s.lang, 'canvas.key'), 10, RULER_H / 2)
+  const keyName = translate(
+    s.lang,
+    project.keyMode === 'major' ? 'theory.modeMajor' : 'theory.modeMinor',
   )
+  ctx.fillStyle = p.keyTextDim
+  ctx.fillText(`${pitchLabel(project.keyRoot + 60).replace(/\d+$/, '')} ${keyName}`, 36, RULER_H / 2)
   ctx.fillStyle = p.keyLine
   ctx.fillRect(0, RULER_H - 1, KEY_W, 1)
   ctx.fillRect(KEY_W - 1, 0, 1, RULER_H)

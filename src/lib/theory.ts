@@ -1,5 +1,6 @@
 import type { Chord, ChordQuality, KeyMode } from '../types'
 import { pitchClassLabel } from './pitch'
+import { translate, type Lang } from './i18n'
 
 export const SCALE_INTERVALS: Record<KeyMode, number[]> = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -93,7 +94,8 @@ export function chordTones(chord: Pick<Chord, 'root' | 'quality'>, flats = false
   return CHORD_INTERVALS[chord.quality].map((i) => pitchClassLabel(chord.root + i, flats))
 }
 
-export function keyLabel(root: number, mode: KeyMode): string {
+export function keyLabel(root: number, mode: KeyMode, lang: Lang = 'en'): string {
   const flats = [1, 3, 5, 8, 10].includes(root)
-  return `${pitchClassLabel(root, flats)} ${mode === 'major' ? 'major' : 'minor'}`
+  const name = translate(lang, mode === 'major' ? 'theory.major' : 'theory.minor')
+  return lang === 'zh' ? `${pitchClassLabel(root, flats)}${name}` : `${pitchClassLabel(root, flats)} ${name}`
 }

@@ -4,7 +4,7 @@ import { engine } from '../audio/engine'
 import { useProjectStore } from '../store/project'
 import { useUiStore } from '../store/ui'
 import type { Chord, ChordQuality, Note } from '../types'
-import { MAX_PITCH, MIN_PITCH, pitchClassLabel, pitchLabel } from '../lib/pitch'
+import { MAX_PITCH, MIN_PITCH, pitchLabel } from '../lib/pitch'
 import {
   CHORD_QUALITIES,
   CHORD_SUFFIX,
@@ -18,6 +18,17 @@ import {
 import { barTicks, clamp, formatPosition } from '../lib/ticks'
 import { SKETCHES, buildSketch } from '../lib/sketch'
 import { snapTicks } from '../lib/snap'
+import { useT } from '../lib/i18n'
+
+const PROG_NOTE_KEY: Record<string, string> = {
+  'pop-anthem': 'prog.popAnthem',
+  sensitive: 'prog.sensitive',
+  fifties: 'prog.fifties',
+  lift: 'prog.lift',
+  turnaround: 'prog.turnaround',
+  epic: 'prog.epic',
+  ballad: 'prog.ballad',
+}
 
 function Section({
   title,
@@ -83,6 +94,7 @@ function Slider({
 }
 
 export function Inspector() {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const selectedIds = useProjectStore((s) => s.selectedIds)
   const notes = useMemo(
@@ -93,12 +105,12 @@ export function Inspector() {
   return (
     <aside className="inspector">
       <div className="inspector-scroll">
-        <NoteSection notes={notes} />
-        <KeySection />
-        <ChordSection />
-        <SketchSection />
-        <InstrumentSection />
-        <ProjectSection />
+        <NoteSection notes={notes} title={t('insp.note')} />
+        <KeySection title={t('insp.keyScale')} />
+        <ChordSection title={t('insp.chords')} />
+        <SketchSection title={t('insp.sketches')} />
+        <InstrumentSection title={t('insp.piano')} />
+        <ProjectSection title={t('insp.project')} />
       </div>
     </aside>
   )
@@ -106,7 +118,8 @@ export function Inspector() {
 
 /* ------------------------------------------------------------------ notes */
 
-function NoteSection({ notes }: { notes: Note[] }) {
+function NoteSection({ notes, title }: { notes: Note[]; title: string }) {
+  const t = useT()
   const updateNotes = useProjectStore((s) => s.updateNotes)
   const removeNotes = useProjectStore((s) => s.removeNotes)
   const project = useProjectStore((s) => s.project)
@@ -115,11 +128,8 @@ function NoteSection({ notes }: { notes: Note[] }) {
 
   if (notes.length === 0) {
     return (
-      <Section title="Note">
-        <p className="empty-note">
-          Select a note to edit its pitch, timing and velocity. Double-click a note to jump
-          here.
-        </p>
+      <Section title={title}>
+        <p className="empty-note">{t('insp.noSelection')}</p>
       </Section>
     )
   }
@@ -128,11 +138,11 @@ function NoteSection({ notes }: { notes: Note[] }) {
   const beats = Math.round((first.duration / 480) * 100) / 100
 
   return (
-    <Section title="Note" count={notes.length > 1 ? `${notes.length}` : undefined}>
+    <Section title={title} count={notes.length > 1 ? `${notes.length}` : undefined}>
       {notes.length === 1 ? (
         <>
           <div className="row">
-            <span className="row-label">Pitch</span>
+            <span className="row-label">{t('insp.pitch')}</span>
             <select
               className="num-input"
               style={{ width: 78 }}
@@ -148,7 +158,7 @@ function NoteSection({ notes }: { notes: Note[] }) {
           </div>
 
           <div className="row">
-            <span className="row-label">Position</span>
+            <span className="row-label">{t('insp.position')}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <button
                 className="btn sm ghost"
@@ -181,7 +191,7 @@ function NoteSection({ notes }: { notes: Note[] }) {
           </div>
 
           <div className="row">
-            <span className="row-label">Length</span>
+            <span className="row-label">{t('insp.length')}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <input
                 className="num-input"
@@ -196,13 +206,13 @@ function NoteSection({ notes }: { notes: Note[] }) {
                   updateNotes([{ id: first.id, patch: { duration: Math.round(value * 480) } }])
                 }}
               />
-              <span style={{ fontSize: 10, color: 'var(--faint)' }}>beats</span>
+              <span style={{ fontSize: 10, color: 'var(--faint)' }}>{t('insp.unitBeats')}</span>
             </div>
           </div>
         </>
       ) : (
         <div className="row">
-          <span className="row-label">Transpose</span>
+          <span className="row-label">{t('insp.transpose')}</span>
           <div style={{ display: 'flex', gap: 4 }}>
             {[-12, -1, 1, 12].map((delta) => (
               <button
@@ -225,7 +235,7 @@ function NoteSection({ notes }: { notes: Note[] }) {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-        <span className="row-label">Velocity</span>
+        <span className="row-label">{t('insp.velocity')}</span>
         <span style={{ fontSize: 11.5, fontVariantNumeric: 'tabular-nums' }}>{first.velocity}</span>
       </div>
       <Slider
@@ -243,13 +253,13 @@ function NoteSection({ notes }: { notes: Note[] }) {
           style={{ color: 'var(--danger)' }}
           onClick={() => removeNotes(notes.map((n) => n.id))}
         >
-          <Trash2 size={12} /> Delete
+          <Trash2 size={12} /> {t('common.delete')}
         </button>
         <button
           className="btn sm ghost"
           onClick={() => useProjectStore.getState().duplicateSelection()}
         >
-          Duplicate
+          {t('common.duplicate')}
         </button>
       </div>
     </Section>
@@ -258,7 +268,9 @@ function NoteSection({ notes }: { notes: Note[] }) {
 
 /* -------------------------------------------------------------------- key */
 
-function KeySection() {
+function KeySection({ title }: { title: string }) {
+  const t = useT()
+  const lang = useUiStore((s) => s.lang)
   const project = useProjectStore((s) => s.project)
   const setKey = useProjectStore((s) => s.setKey)
   const scaleSnap = useUiStore((s) => s.scaleSnap)
@@ -267,13 +279,15 @@ function KeySection() {
   const setShowScaleGuide = useUiStore((s) => s.setShowScaleGuide)
 
   return (
-    <Section title="Key & scale">
+    <Section title={title}>
       <div className="row">
-        <span className="row-label">Key</span>
-        <span style={{ fontSize: 12, fontWeight: 600 }}>{keyLabel(project.keyRoot, project.keyMode)}</span>
+        <span className="row-label">{t('insp.key')}</span>
+        <span style={{ fontSize: 12, fontWeight: 600 }}>
+          {keyLabel(project.keyRoot, project.keyMode, lang)}
+        </span>
       </div>
       <div className="row">
-        <span className="row-label">Mode</span>
+        <span className="row-label">{t('insp.mode')}</span>
         <div className="chip-group">
           {(['major', 'minor'] as const).map((mode) => (
             <button
@@ -281,25 +295,25 @@ function KeySection() {
               className={`chip ${project.keyMode === mode ? 'active' : ''}`}
               onClick={() => setKey(project.keyRoot, mode)}
             >
-              {mode === 'major' ? 'Major' : 'Minor'}
+              {t(mode === 'major' ? 'insp.major' : 'insp.minor')}
             </button>
           ))}
         </div>
       </div>
       <div className="row">
-        <span className="row-label">Scale snap</span>
+        <span className="row-label">{t('insp.scaleSnap')}</span>
         <button
           className={`switch ${scaleSnap ? 'on' : ''}`}
           onClick={() => setScaleSnap(!scaleSnap)}
-          aria-label="Scale snap"
+          aria-label={t('insp.scaleSnap')}
         />
       </div>
       <div className="row">
-        <span className="row-label">Highlight rows</span>
+        <span className="row-label">{t('insp.highlight')}</span>
         <button
           className={`switch ${showScaleGuide ? 'on' : ''}`}
           onClick={() => setShowScaleGuide(!showScaleGuide)}
-          aria-label="Highlight scale rows"
+          aria-label={t('insp.highlight')}
         />
       </div>
 
@@ -308,14 +322,14 @@ function KeySection() {
           const pc = (project.keyRoot + interval) % 12
           return (
             <span className="degree" key={index}>
-              <b>{pitchClassLabel(pc, [1, 3, 5, 8, 10].includes(project.keyRoot))}</b>
+              <b>{pitchLabel(60 + pc).replace(/\d+$/, '')}</b>
               <span>{index + 1}</span>
             </span>
           )
         })}
       </div>
       <p className="empty-note" style={{ marginTop: 8 }}>
-        Notes outside the key are still welcome — they just read as darker in the roll.
+        {t('insp.scaleHint')}
       </p>
     </Section>
   )
@@ -323,7 +337,8 @@ function KeySection() {
 
 /* ------------------------------------------------------------------ chords */
 
-function ChordSection() {
+function ChordSection({ title }: { title: string }) {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const addChord = useProjectStore((s) => s.addChord)
   const updateChord = useProjectStore((s) => s.updateChord)
@@ -344,7 +359,7 @@ function ChordSection() {
       (c) => c.start < start + barLen && c.start + c.duration > start,
     )
     if (existing) {
-      notify('That bar already has a chord')
+      notify(t('insp.chordExists'))
       return
     }
     const degree = Math.min(6, (bar % 4) * 1)
@@ -361,17 +376,17 @@ function ChordSection() {
       return { start: bar * barLen, duration: barLen, root, quality }
     })
     setChords(chords)
-    notify(`Applied ${preset.name}`)
+    notify(t('insp.progressionApplied', { name: preset.name }))
   }
 
   return (
-    <Section title="Chords" count={project.chords.length || undefined}>
+    <Section title={title} count={project.chords.length || undefined}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         <button className="btn sm" onClick={addAtPlayhead}>
-          <Plus size={12} /> Add at playhead
+          <Plus size={12} /> {t('insp.addChord')}
         </button>
         <button className="btn sm ghost" onClick={() => setShowPresets(!showPresets)}>
-          Progressions
+          {t('insp.progressions')}
         </button>
       </div>
 
@@ -389,7 +404,7 @@ function ChordSection() {
               >
                 <span style={{ minWidth: 0 }}>
                   <div className="name">{preset.name}</div>
-                  <div className="note">{preset.note}</div>
+                  <div className="note">{t(PROG_NOTE_KEY[preset.id] ?? 'prog.popAnthem')}</div>
                 </span>
                 <span className="chords">{label}</span>
               </button>
@@ -399,19 +414,16 @@ function ChordSection() {
       )}
 
       <div className="row" style={{ paddingTop: 0 }}>
-        <span className="row-label">Play on click</span>
+        <span className="row-label">{t('insp.playOnClick')}</span>
         <button
           className={`switch ${chordPreview ? 'on' : ''}`}
           onClick={() => setChordPreview(!chordPreview)}
-          aria-label="Preview chords"
+          aria-label={t('insp.playOnClick')}
         />
       </div>
 
       {project.chords.length === 0 ? (
-        <p className="empty-note">
-          Chords are a guide, not a rule. Add one per bar to hear how a melody sits on the
-          harmony.
-        </p>
+        <p className="empty-note">{t('insp.chordHint')}</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {project.chords.map((chord: Chord) => (
@@ -448,6 +460,7 @@ function ChordSection() {
                 className="num-input"
                 style={{ width: 40, height: 22, padding: '0 2px', fontSize: 11 }}
                 value={chord.root}
+                title={t('insp.chordRoot')}
                 onChange={(e) => updateChord(chord.id, { root: Number(e.target.value) })}
               >
                 {Array.from({ length: 12 }, (_, i) => (
@@ -472,7 +485,7 @@ function ChordSection() {
                 className="icon-btn"
                 style={{ width: 20, height: 20, marginLeft: 'auto' }}
                 onClick={() => removeChord(chord.id)}
-                title="Remove chord"
+                title={t('common.delete')}
               >
                 <Trash2 size={11} />
               </button>
@@ -486,7 +499,8 @@ function ChordSection() {
 
 /* ----------------------------------------------------------------- sketches */
 
-function SketchSection() {
+function SketchSection({ title }: { title: string }) {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const applySketch = useProjectStore((s) => s.applySketch)
   const notify = useUiStore((s) => s.notify)
@@ -496,18 +510,23 @@ function SketchSection() {
     if (!style) return
     const { notes, chords, bpm } = buildSketch(style, project)
     applySketch(notes, chords, bpm)
-    notify(`${style.name} sketch loaded — Ctrl Z to undo`)
+    notify(t('insp.sketchLoaded', { name: t(`sketch.${style.id}.name`) }))
   }
 
   return (
-    <Section title="Sketches" defaultOpen={false}>
+    <Section title={title} defaultOpen={false}>
       <p className="empty-note" style={{ marginBottom: 8 }}>
-        Four-bar starting points in your key. Every note stays editable.
+        {t('insp.sketchHint')}
       </p>
       <div className="sketch-grid">
         {SKETCHES.map((style) => (
-          <button key={style.id} className="sketch-btn" onClick={() => apply(style.id)} title={style.hint}>
-            {style.name}
+          <button
+            key={style.id}
+            className="sketch-btn"
+            onClick={() => apply(style.id)}
+            title={t(`sketch.${style.id}.hint`)}
+          >
+            {t(`sketch.${style.id}.name`)}
           </button>
         ))}
       </div>
@@ -517,15 +536,18 @@ function SketchSection() {
 
 /* --------------------------------------------------------------- instrument */
 
-function InstrumentSection() {
+function InstrumentSection({ title }: { title: string }) {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const setInstrument = useProjectStore((s) => s.setInstrument)
 
   return (
-    <Section title="Piano">
+    <Section title={title}>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <span className="row-label">Volume</span>
-        <span style={{ fontSize: 11.5, color: 'var(--dim)' }}>{Math.round(project.instrument.volume)} dB</span>
+        <span className="row-label">{t('insp.volume')}</span>
+        <span style={{ fontSize: 11.5, color: 'var(--dim)' }}>
+          {Math.round(project.instrument.volume)} dB
+        </span>
       </div>
       <Slider
         value={project.instrument.volume}
@@ -539,7 +561,7 @@ function InstrumentSection() {
       />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-        <span className="row-label">Reverb</span>
+        <span className="row-label">{t('insp.reverb')}</span>
         <span style={{ fontSize: 11.5, color: 'var(--dim)' }}>
           {Math.round(project.instrument.reverb * 100)}%
         </span>
@@ -557,16 +579,16 @@ function InstrumentSection() {
       />
 
       <div className="row" style={{ marginTop: 6 }}>
-        <span className="row-label">Sustain</span>
+        <span className="row-label">{t('insp.sustain')}</span>
         <button
           className={`switch ${project.instrument.sustain ? 'on' : ''}`}
           onClick={() => setInstrument({ sustain: !project.instrument.sustain })}
-          aria-label="Sustain"
+          aria-label={t('insp.sustain')}
         />
       </div>
 
       <div className="row">
-        <span className="row-label">Metronome</span>
+        <span className="row-label">{t('insp.metronome')}</span>
         <button
           className={`switch ${project.instrument.metronome ? 'on' : ''}`}
           onClick={() => {
@@ -574,12 +596,12 @@ function InstrumentSection() {
             setInstrument({ metronome: next })
             engine.setMetronome(next, useProjectStore.getState().project)
           }}
-          aria-label="Metronome"
+          aria-label={t('insp.metronome')}
         />
       </div>
 
       <p className="empty-note" style={{ marginTop: 6 }}>
-        Salamander Grand Piano, sampled and played locally in your browser.
+        {t('insp.pianoNote')}
       </p>
     </Section>
   )
@@ -587,7 +609,8 @@ function InstrumentSection() {
 
 /* ------------------------------------------------------------------ project */
 
-function ProjectSection() {
+function ProjectSection({ title }: { title: string }) {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const setBars = useProjectStore((s) => s.setBars)
   const setLoop = useProjectStore((s) => s.setLoop)
@@ -598,15 +621,15 @@ function ProjectSection() {
   const seconds = Math.round(totalSeconds % 60)
 
   return (
-    <Section title="Project" defaultOpen={false}>
+    <Section title={title} defaultOpen={false}>
       <div className="row">
-        <span className="row-label">Length</span>
+        <span className="row-label">{t('insp.projectLength')}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <button className="btn sm ghost" onClick={() => setBars(project.bars - 1)}>
             −
           </button>
           <span style={{ fontSize: 12, fontWeight: 600, minWidth: 56, textAlign: 'center' }}>
-            {project.bars} bars
+            {t('insp.unitsBars', { n: project.bars })}
           </span>
           <button className="btn sm ghost" onClick={() => setBars(project.bars + 1)}>
             +
@@ -614,13 +637,13 @@ function ProjectSection() {
         </div>
       </div>
       <div className="row">
-        <span className="row-label">Duration</span>
+        <span className="row-label">{t('insp.projectDuration')}</span>
         <span style={{ fontSize: 12, color: 'var(--dim)' }}>
           {minutes}:{String(seconds).padStart(2, '0')}
         </span>
       </div>
       <div className="row">
-        <span className="row-label">Loop bars</span>
+        <span className="row-label">{t('insp.loopBars')}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <input
             className="num-input"
@@ -646,7 +669,7 @@ function ProjectSection() {
         </div>
       </div>
       <p className="empty-note" style={{ marginTop: 6 }}>
-        Shift-drag the ruler to set a loop. Drag the ruler to move the playhead.
+        {t('insp.projectHint')}
       </p>
     </Section>
   )

@@ -13,6 +13,7 @@ import {
 import { parseProject } from '../io/projectFile'
 import { uid } from '../lib/id'
 import { useUiStore } from '../store/ui'
+import { useT } from '../lib/i18n'
 
 export function ProjectsDialog({
   onClose,
@@ -21,6 +22,8 @@ export function ProjectsDialog({
   onClose: () => void
   onOpen: (project: Project) => void
 }) {
+  const t = useT()
+  const lang = useUiStore((s) => s.lang)
   const [items, setItems] = useState<ProjectSummary[]>([])
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -39,7 +42,7 @@ export function ProjectsDialog({
     const project = await loadProject(id)
     setBusy(false)
     if (!project) {
-      notify('Project could not be opened')
+      notify(t('proj.openFailed'))
       return
     }
     await setLastProjectId(id)
@@ -48,7 +51,7 @@ export function ProjectsDialog({
   }
 
   const create = async () => {
-    const project = createEmptyProject(`Melody ${items.length + 1}`)
+    const project = createEmptyProject(`${t('proj.new')} ${items.length + 1}`)
     await saveProject(project)
     await setLastProjectId(project.id)
     onOpen(project)
@@ -61,7 +64,7 @@ export function ProjectsDialog({
     const copy: Project = {
       ...project,
       id: uid('prj'),
-      name: `${project.name} copy`,
+      name: `${project.name} ${t('common.duplicate')}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
@@ -78,7 +81,7 @@ export function ProjectsDialog({
     setConfirmId(null)
     refresh()
     if (id === currentId) {
-      const next = createEmptyProject()
+      const next = createEmptyProject(t('proj.untitled'))
       await saveProject(next)
       onOpen(next)
     }
@@ -92,27 +95,29 @@ export function ProjectsDialog({
       project.name = project.name || file.name.replace(/\.json$/i, '')
       await saveProject(project)
       refresh()
-      notify('Project imported')
+      notify(t('proj.imported'))
     } catch (err) {
-      notify(err instanceof Error ? err.message : 'Could not import that file')
+      notify(err instanceof Error ? err.message : t('proj.importFailed'))
     }
   }
 
+  const confirmName = items.find((i) => i.id === confirmId)?.name ?? ''
+
   return (
     <Modal
-      title="Projects"
-      subtitle="Stored locally in this browser"
+      title={t('proj.title')}
+      subtitle={t('proj.subtitle')}
       onClose={onClose}
       footer={
         <>
           <button className="btn ghost" onClick={() => fileRef.current?.click()}>
             <Upload size={13} />
-            Import JSON
+            {t('proj.import')}
           </button>
           <div style={{ flex: 1 }} />
           <button className="btn primary" onClick={create}>
             <Plus size={13} />
-            New project
+            {t('proj.new')}
           </button>
         </>
       }
@@ -129,7 +134,7 @@ export function ProjectsDialog({
         }}
       />
 
-      {items.length === 0 && <p className="empty-note">No projects yet.</p>}
+      {items.length === 0 && <p className="empty-note">{t('proj.empty')}</p>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {items.map((item) => (
@@ -138,14 +143,15 @@ export function ProjectsDialog({
             <div className="meta" onClick={() => void open(item.id)} style={{ cursor: 'pointer' }}>
               <div className="pname">{item.name}</div>
               <div className="pmeta">
-                {new Date(item.updatedAt).toLocaleString()} · {item.bpm} BPM · {item.notes} notes
+                {new Date(item.updatedAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US')} ·{' '}
+                {t('proj.rowMeta', { bpm: item.bpm, n: item.notes })}
               </div>
             </div>
             <button
               className="icon-btn"
               style={{ width: 26, height: 26 }}
               onClick={() => void duplicate(item.id)}
-              title="Duplicate"
+              title={t('common.duplicate')}
               disabled={busy}
             >
               <Copy size={13} />
@@ -158,7 +164,7 @@ export function ProjectsDialog({
                 color: confirmId === item.id ? 'var(--danger)' : undefined,
               }}
               onClick={() => void remove(item.id)}
-              title={confirmId === item.id ? 'Click again to delete' : 'Delete'}
+              title={confirmId === item.id ? t('proj.clickAgain') : t('common.delete')}
               disabled={busy}
             >
               <Trash2 size={13} />
@@ -168,8 +174,7 @@ export function ProjectsDialog({
       </div>
       {confirmId && (
         <p className="empty-note" style={{ marginTop: 10, color: 'var(--danger)' }}>
-          Click the trash icon again to delete “{items.find((i) => i.id === confirmId)?.name}”.
-          This cannot be undone.
+          {t('proj.confirmDelete', { name: confirmName })}
         </p>
       )}
     </Modal>

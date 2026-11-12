@@ -6,8 +6,9 @@ import { useUiStore } from '../../store/ui'
 import type { Note } from '../../types'
 import { MIN_NOTE, snapTicks } from '../../lib/snap'
 import { barTicks, clamp, snapFloor, snapRound } from '../../lib/ticks'
-import { MAX_PITCH, MIN_PITCH, pitchClass, pitchLabel } from '../../lib/pitch'
-import { scalePitchClasses } from '../../lib/theory'
+import { MAX_PITCH, MIN_PITCH, pitchClass } from '../../lib/pitch'
+import { keyLabel, scalePitchClasses } from '../../lib/theory'
+import { useT } from '../../lib/i18n'
 import { PALETTES, drawBase, drawOverlay } from './draw'
 import {
   KEY_W,
@@ -59,6 +60,8 @@ export function PianoRoll() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [cursor, setCursor] = useState('crosshair')
 
+  const t = useT()
+  const lang = useUiStore((s) => s.lang)
   const tool = useUiStore((s) => s.tool)
   const snap = useUiStore((s) => s.snap)
   const vp = useUiStore((s) => s.viewport)
@@ -117,6 +120,7 @@ export function PianoRoll() {
       showScaleGuide: st.showScaleGuide,
       showChords: st.showChords,
       scalePcs: scalePitchClasses(proj.keyRoot, proj.keyMode),
+      lang: st.lang,
       palette: PALETTES[st.theme],
     })
   }
@@ -706,13 +710,13 @@ export function PianoRoll() {
     if (!note) return []
     return [
       {
-        label: 'Duplicate',
+        label: t('roll.duplicate'),
         icon: <Copy size={13} />,
         shortcut: 'Ctrl D',
         run: () => store.duplicateSelection(),
       },
       {
-        label: 'Select same pitch',
+        label: t('roll.selectSamePitch'),
         icon: <Music2 size={13} />,
         run: () =>
           store.select(
@@ -720,12 +724,12 @@ export function PianoRoll() {
           ),
       },
       {
-        label: 'Quantize selection',
+        label: t('roll.quantize'),
         icon: <Maximize2 size={13} />,
         run: () => {
           const step = snapTicks(useUiStore.getState().snap, store.project.timeSignature)
           if (step <= 0) {
-            notify('Snap is off — pick a grid first')
+            notify(t('roll.snapOff'))
             return
           }
           store.updateNotes(
@@ -743,7 +747,7 @@ export function PianoRoll() {
         },
       },
       {
-        label: 'Delete',
+        label: t('common.delete'),
         icon: <Trash2 size={13} />,
         shortcut: 'Del',
         danger: true,
@@ -759,20 +763,20 @@ export function PianoRoll() {
     <div className="roll-wrap">
       <div className="roll-toolbar">
         <div className="chip-group">
-          <button className="chip" onClick={() => zoomBy(0.8)} title="Zoom out (Ctrl + wheel)">
+          <button className="chip" onClick={() => zoomBy(0.8)} title={t('roll.zoomOut')}>
             <Minus size={12} />
           </button>
-          <button className="chip" onClick={() => zoomBy(1.25)} title="Zoom in (Ctrl + wheel)">
+          <button className="chip" onClick={() => zoomBy(1.25)} title={t('roll.zoomIn')}>
             <Plus size={12} />
           </button>
-          <button className="chip" onClick={fit} title="Fit the melody in view">
-            Fit
+          <button className="chip" onClick={fit} title={t('roll.fit')}>
+            {t('roll.fitShort')}
           </button>
         </div>
 
         <div className="chip-group" style={{ paddingRight: 4 }}>
           <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--faint)', padding: '0 4px 0 8px', fontWeight: 600 }}>
-            Snap
+            {t('roll.snap')}
           </span>
           <select
             className="snap-select"
@@ -791,23 +795,24 @@ export function PianoRoll() {
           <button
             className={`chip ${showScaleGuide ? 'active' : ''}`}
             onClick={() => useUiStore.getState().setShowScaleGuide(!showScaleGuide)}
-            title="Tint the rows that belong to the project key"
+            title={t('insp.highlight')}
           >
-            In key
+            {t('roll.inKey')}
           </button>
           <button
             className={`chip ${scaleSnap ? 'active' : ''}`}
             onClick={() => useUiStore.getState().setScaleSnap(!scaleSnap)}
-            title="Snap new and moved notes to the project key"
+            title={t('insp.scaleSnap')}
           >
-            Key snap
+            {t('roll.keySnap')}
           </button>
           <button
             className={`chip ${showChords ? 'active' : ''}`}
             onClick={() => useUiStore.getState().setShowChords(!showChords)}
-            title="Show the chord track"
+            title={t('insp.chords')}
           >
-            Chords{chordCount ? ` ${chordCount}` : ''}
+            {t('roll.chords')}
+            {chordCount ? ` ${chordCount}` : ''}
           </button>
         </div>
 
@@ -816,19 +821,19 @@ export function PianoRoll() {
         {selectedIds.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 11, color: 'var(--dim)', whiteSpace: 'nowrap' }}>
-              {selectedIds.length} selected
+              {t('roll.selected', { n: selectedIds.length })}
             </span>
             <button
               className="icon-btn"
               style={{ width: 24, height: 24, color: 'var(--danger)' }}
               onClick={() => useProjectStore.getState().removeNotes(selectedIds)}
-              title="Delete selected notes"
+              title={t('roll.deleteSelected')}
             >
               <Eraser size={13} />
             </button>
           </div>
         )}
-        <span className="kbd-hint">Shift bypasses snap</span>
+        <span className="kbd-hint">{t('roll.shiftHint')}</span>
       </div>
 
       <div
@@ -853,11 +858,8 @@ export function PianoRoll() {
 
         {isEmpty && (
           <div className="roll-empty">
-            <h3>Draw your first note</h3>
-            <p>
-              Click anywhere on the grid — or press and drag to set the length. The piano
-              sounds as you go.
-            </p>
+            <h3>{t('roll.emptyTitle')}</h3>
+            <p>{t('roll.emptyBody')}</p>
             <button
               className="btn sm"
               style={{ pointerEvents: 'auto', marginTop: 12 }}
@@ -870,24 +872,22 @@ export function PianoRoll() {
                 useProjectStore.getState().applySketch(sketchNotes, chords, bpm)
               }}
             >
-              Start with a 4-bar sketch
+              {t('roll.starter')}
             </button>
             <div className="hint" style={{ marginTop: 12 }}>
-              A–K plays the piano · Space + drag pans · Ctrl + wheel zooms
+              {t('roll.emptyHint')}
             </div>
           </div>
         )}
 
         <div className="roll-badge">
-          <span>
-            {pitchLabel(project.keyRoot + 60).replace(/\d+$/, '')} {project.keyMode}
-          </span>
+          <span>{keyLabel(project.keyRoot, project.keyMode, lang)}</span>
           <span style={{ opacity: 0.35 }}>·</span>
           <span>
             {project.timeSignature.numerator}/{project.timeSignature.denominator}
           </span>
           <span style={{ opacity: 0.35 }}>·</span>
-          <span>{Math.round(vp.pxPerTick * 480)} px / beat</span>
+          <span>{t('roll.pxBeat', { n: Math.round(vp.pxPerTick * 480) })}</span>
         </div>
       </div>
 

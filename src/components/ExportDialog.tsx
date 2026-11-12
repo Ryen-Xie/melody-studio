@@ -7,10 +7,12 @@ import { projectToMidi, downloadBlob, safeFilename } from '../io/midi'
 import { serializeProject } from '../io/projectFile'
 import { renderProjectWav } from '../audio/render'
 import { barTicks } from '../lib/ticks'
+import { useT } from '../lib/i18n'
 
 type Format = 'wav' | 'midi' | 'json'
 
 export function ExportDialog({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const project = useProjectStore((s) => s.project)
   const notify = useUiStore((s) => s.notify)
   const [format, setFormat] = useState<Format>('wav')
@@ -29,11 +31,11 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
 
   const summary = useMemo(
     () => [
-      ['Notes', String(project.notes.length)],
-      ['Tempo', `${project.bpm} BPM`],
-      ['Length', `${project.bars} bars · ${duration}`],
+      [t('exp.notes'), String(project.notes.length)],
+      [t('exp.tempo'), `${project.bpm} BPM`],
+      [t('exp.length'), t('exp.barsDuration', { bars: project.bars, time: duration })],
     ],
-    [project.notes.length, project.bpm, project.bars, duration],
+    [t, project.notes.length, project.bpm, project.bars, duration],
   )
 
   const run = async () => {
@@ -42,7 +44,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     try {
       if (format === 'midi') {
         downloadBlob(projectToMidi(project), `${base}.mid`)
-        notify('MIDI exported')
+        notify(t('exp.toastMidi'))
         onClose()
         return
       }
@@ -51,46 +53,50 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           new Blob([serializeProject(project)], { type: 'application/json' }),
           `${base}.melody.json`,
         )
-        notify('Project file exported')
+        notify(t('exp.toastJson'))
         onClose()
         return
       }
 
       const useLoop = range === 'loop' && project.loop.enabled
-      setProgress({ value: 0.02, label: 'Starting' })
+      setProgress({ value: 0.02, label: t('exp.progress.start') })
       const blob = await renderProjectWav(project, {
         startTicks: useLoop ? project.loop.start : 0,
         endTicks: useLoop ? project.loop.end : barLen * project.bars,
-        onProgress: (value, label) => setProgress({ value, label: label ?? 'Rendering' }),
+        onProgress: (value, label) =>
+          setProgress({ value, label: label ? t(label) : t('exp.progress.render') }),
       })
       downloadBlob(blob, `${base}.wav`)
       setProgress(null)
-      notify('WAV exported')
+      notify(t('exp.toastWav'))
       onClose()
     } catch (err) {
       setProgress(null)
-      const message = err instanceof Error ? err.message : 'Export failed'
-      setError(message)
+      setError(err instanceof Error ? err.message : t('exp.failed'))
     }
   }
 
   return (
     <Modal
-      title="Export"
-      subtitle="Everything is generated on this device"
+      title={t('exp.title')}
+      subtitle={t('exp.subtitle')}
       onClose={onClose}
       footer={
         <>
           <span className="kbd-hint" style={{ alignSelf: 'center' }}>
-            {format === 'wav' ? `${duration} of audio` : format === 'midi' ? 'Standard MIDI file' : 'Melody Studio project'}
+            {format === 'wav'
+              ? t('exp.audioLength', { time: duration })
+              : format === 'midi'
+                ? t('exp.midiHint')
+                : t('exp.jsonHint')}
           </span>
           <div style={{ flex: 1 }} />
           <button className="btn ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="btn primary" onClick={() => void run()} disabled={busy}>
             {busy ? <Loader2 size={13} className="spin" /> : <Download size={13} />}
-            {busy ? 'Rendering…' : `Export ${format.toUpperCase()}`}
+            {busy ? t('exp.rendering') : t('exp.exportFormat', { format: format.toUpperCase() })}
           </button>
         </>
       }
@@ -109,7 +115,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="row" style={{ paddingTop: 0 }}>
-        <span className="row-label">File name</span>
+        <span className="row-label">{t('exp.fileName')}</span>
         <input
           className="num-input"
           style={{ width: 240 }}
@@ -121,22 +127,22 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
 
       {format === 'wav' && (
         <div className="row">
-          <span className="row-label">Range</span>
+          <span className="row-label">{t('exp.range')}</span>
           <div className="chip-group">
             <button
               className={`chip ${range === 'all' ? 'active' : ''}`}
               onClick={() => setRange('all')}
               disabled={busy}
             >
-              Whole project
+              {t('exp.whole')}
             </button>
             <button
               className={`chip ${range === 'loop' ? 'active' : ''}`}
               onClick={() => setRange('loop')}
               disabled={busy || !project.loop.enabled}
-              title={project.loop.enabled ? '' : 'Turn the loop on first'}
+              title={project.loop.enabled ? '' : t('exp.loopOff')}
             >
-              Loop only
+              {t('exp.loopOnly')}
             </button>
           </div>
         </div>
@@ -163,10 +169,10 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
         </div>
         <p className="empty-note">
           {format === 'wav'
-            ? 'Rendered offline with the same piano samples you hear — no system audio is recorded.'
+            ? t('exp.descWav')
             : format === 'midi'
-              ? 'Opens in FL Studio, Ableton Live, Logic Pro and any DAW that reads .mid files.'
-              : 'A portable copy of the project, including notes, chords and settings.'}
+              ? t('exp.descMidi')
+              : t('exp.descJson')}
         </p>
       </div>
 
@@ -185,14 +191,12 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       )}
 
       {error && (
-        <p style={{ marginTop: 14, color: 'var(--danger)', fontSize: 12 }}>
-          {error}
-        </p>
+        <p style={{ marginTop: 14, color: 'var(--danger)', fontSize: 12 }}>{error}</p>
       )}
 
       {!busy && progress === null && !error && format === 'wav' && (
         <p className="empty-note" style={{ marginTop: 12, display: 'flex', gap: 6, alignItems: 'center' }}>
-          <Check size={12} /> 44.1 kHz · 16-bit · stereo WAV
+          <Check size={12} /> {t('exp.spec')}
         </p>
       )}
     </Modal>
