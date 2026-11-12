@@ -2,6 +2,9 @@
 
 浏览器里的轻量旋律工作站。用鼠标在钢琴卷帘上写旋律，实时听到真实的三角钢琴，导出 MIDI / WAV。不需要会弹琴，也不需要乐理基础。
 
+**在线试用：** https://ryen-xie.github.io/melody-studio/
+**仓库：** https://github.com/Ryen-Xie/melody-studio
+
 - Canvas 钢琴卷帘：横纵缩放、自由平移、框选、复制粘贴、力度编辑、撤销重做
 - Tone.js + Salamander Grand Piano 采样，本地自托管，离线可用
 - 调性高亮、音阶吸附、和弦轨、五套四小节旋律草稿
@@ -186,22 +189,18 @@ src/
 
 ## 六、部署
 
-本机没有安装 `git` / `gh`，也没有 CI 凭据，所以**没有执行线上部署**。构建产物在 `dist/`，可直接托管。
+已部署到 GitHub Pages：https://ryen-xie.github.io/melody-studio/
 
-Vercel：
-
-```bash
-npx vercel --prod
-```
-
-GitHub Pages（`vite.config.ts` 已设置 `base: './'`，可放在子路径）：
+- `main` 保存源码，`gh-pages` 保存构建产物（`npm run build` 后推送 `dist/`）
+- `vite.config.ts` 设置 `base: './'`，因此可以放在仓库子路径下
+- 更新线上版本：
 
 ```bash
 npm run build
-npx gh-pages -d dist
+npx gh-pages -d dist -b gh-pages
 ```
 
-任何静态服务器都可以：`dist/` 是纯静态文件，无后端、无环境变量。
+也可以部署到 Vercel：`npx vercel --prod`。`dist/` 是纯静态文件，无后端、无环境变量。
 
 ---
 
